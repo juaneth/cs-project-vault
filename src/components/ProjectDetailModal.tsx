@@ -2,25 +2,21 @@ import React from 'react'
 import {
   ExternalLink,
   FileText,
-  Clock,
-  HardDrive,
   Cpu,
   Star,
   Edit2,
   Trash2,
   Copy,
-  TrendingUp,
   CheckCircle,
   Calendar,
-  Share2
+  Folder,
 } from 'lucide-react'
 import { GithubIcon } from '@/components/icons/Github'
-import { CSProject } from '@/types/project'
+import { CSProject, GRADIENT_PRESETS } from '@/types/project'
 import { Modal } from '@/components/ui/modal'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
-import { getDifficultyBadgeVariant, getStatusDotClass } from '@/components/ProjectCard'
+import { getStatusDotClass } from '@/components/ProjectCard'
 import { getDomainIcon } from '@/components/StatsBanner'
 
 interface ProjectDetailModalProps {
@@ -42,6 +38,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   onDuplicate,
   onToggleFavorite,
 }) => {
+  const [copyStatus, setCopyStatus] = React.useState<'idle' | 'copied' | 'error'>('idle')
+
   if (!project) return null
 
   const gradientStyles: Record<string, string> = {
@@ -55,10 +53,36 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
   const headerGradient = gradientStyles[project.gradientPreset] || gradientStyles['monochrome-sheen']
 
-  const copySummary = () => {
-    const summary = `${project.title}\nDomain: ${project.domain} | Difficulty: ${project.difficulty}\nComplexity: Time: ${project.complexity?.time || 'N/A'}, Space: ${project.complexity?.space || 'N/A'}\n${project.tagline}\n${project.githubUrl || ''}`
-    navigator.clipboard.writeText(summary)
-    alert('Project specifications copied to clipboard!')
+  const copyAllDetails = async () => {
+    const details = [
+      project.title,
+      '='.repeat(project.title.length),
+      `Project ID: ${project.id}`,
+      `Tagline: ${project.tagline || 'Not provided'}`,
+      `Domain: ${project.domain}`,
+      `Folder: ${project.folder || 'Unassigned'}`,
+      `Status: ${project.status}`,
+      `Description:\n${project.description || 'Not provided'}`,
+      `Tech Stack:\n${project.techStack.length ? project.techStack.map((tech) => `- ${tech}`).join('\n') : '- None'}`,
+      `GitHub URL: ${project.githubUrl || 'Not provided'}`,
+      `Demo URL: ${project.demoUrl || 'Not provided'}`,
+      `Research Paper URL: ${project.paperUrl || 'Not provided'}`,
+      `Featured: ${project.featured ? 'Yes' : 'No'}`,
+      `Favorite: ${project.isFavorite ? 'Yes' : 'No'}`,
+      `Created: ${new Date(project.createdAt).toLocaleString()}`,
+      `Updated: ${new Date(project.updatedAt).toLocaleString()}`,
+      `Key Highlights:\n${project.keyHighlights.length ? project.keyHighlights.map((highlight) => `- ${highlight}`).join('\n') : '- None'}`,
+      `Architecture Notes:\n${project.architectureNotes || 'Not provided'}`,
+      `Card Style: ${GRADIENT_PRESETS.find((preset) => preset.id === project.gradientPreset)?.label || project.gradientPreset}`,
+    ].join('\n\n')
+
+    try {
+      await navigator.clipboard.writeText(details)
+      setCopyStatus('copied')
+      window.setTimeout(() => setCopyStatus('idle'), 2000)
+    } catch {
+      setCopyStatus('error')
+    }
   }
 
   return (
@@ -77,14 +101,16 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
               <span>{project.domain}</span>
             </span>
 
-            <Badge variant={getDifficultyBadgeVariant(project.difficulty)}>
-              {project.difficulty}
-            </Badge>
-
             <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-mono bg-zinc-950 text-zinc-400 border border-zinc-800">
               <span className={`h-1.5 w-1.5 rounded-full ${getStatusDotClass(project.status)}`} />
               <span>{project.status}</span>
             </span>
+            {project.folder && (
+              <span className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-mono bg-zinc-950 text-zinc-400 border border-zinc-800">
+                <Folder className="h-3.5 w-3.5 text-zinc-500" />
+                <span>{project.folder}</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
@@ -101,11 +127,23 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             </button>
 
             <button
-              onClick={copySummary}
-              className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-900 rounded-md transition-colors"
-              title="Copy Summary"
+              onClick={copyAllDetails}
+              className="inline-flex items-center gap-1.5 rounded-md p-2 text-xs font-mono text-zinc-500 hover:text-white hover:bg-zinc-900 transition-colors"
+              title="Copy all project details"
+              aria-live="polite"
             >
-              <Share2 className="w-4 h-4" />
+              {copyStatus === 'copied' ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : (
+                <Copy className="w-4 h-4" />
+              )}
+              <span>
+                {copyStatus === 'copied'
+                  ? 'Copied'
+                  : copyStatus === 'error'
+                    ? 'Copy failed'
+                    : 'Copy all details'}
+              </span>
             </button>
           </div>
         </div>
@@ -159,71 +197,6 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 
       {/* Main Body Details */}
       <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto font-sans">
-        {/* Algorithmic Complexity Cards */}
-        {project.complexity && (project.complexity.time || project.complexity.space) && (
-          <div>
-            <h4 className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-2">
-              Theoretical Complexity Bounds
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {project.complexity.time && (
-                <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center gap-3">
-                  <div className="p-2 rounded bg-zinc-900 text-zinc-300">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-zinc-500 font-mono block">
-                      Time Complexity
-                    </span>
-                    <span className="text-sm font-bold font-mono text-white">
-                      {project.complexity.time}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {project.complexity.space && (
-                <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center gap-3">
-                  <div className="p-2 rounded bg-zinc-900 text-zinc-300">
-                    <HardDrive className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-zinc-500 font-mono block">
-                      Space Complexity
-                    </span>
-                    <span className="text-sm font-bold font-mono text-white">
-                      {project.complexity.space}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Benchmarks & Empirical Metrics */}
-        {project.metrics && project.metrics.length > 0 && (
-          <div>
-            <h4 className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Empirical Performance Benchmarks</span>
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              {project.metrics.map((m) => (
-                <div
-                  key={m.id}
-                  className="p-3 rounded-lg bg-zinc-950 border border-zinc-850"
-                >
-                  <span className="text-[11px] text-zinc-500 font-mono block truncate">{m.label}</span>
-                  <span className="text-base font-bold font-mono text-white tracking-tight">
-                    {m.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* System Architecture Notes */}
         {project.architectureNotes && (
           <div>

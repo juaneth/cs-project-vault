@@ -9,12 +9,7 @@ export type CSDomain =
   | 'Databases & Storage'
   | 'Networking & Protocols'
   | 'Web & Cloud Architecture'
-
-export type DifficultyLevel =
-  | 'Beginner'
-  | 'Intermediate'
-  | 'Advanced'
-  | 'Research / High-Perf'
+  | 'Other'
 
 export type ProjectStatus =
   | 'Active'
@@ -32,19 +27,13 @@ export type GradientPreset =
   | 'obsidian-noir'
   | 'wireframe-grid'
 
-export interface ProjectMetric {
-  id: string
-  label: string
-  value: string
-}
-
 export interface CSProject {
   id: string
   title: string
   tagline: string
   description: string
   domain: CSDomain
-  difficulty: DifficultyLevel
+  folder?: string
   status: ProjectStatus
   techStack: string[]
   githubUrl?: string
@@ -54,12 +43,7 @@ export interface CSProject {
   isFavorite: boolean
   createdAt: string
   updatedAt: string
-  complexity?: {
-    time?: string
-    space?: string
-  }
   keyHighlights: string[]
-  metrics: ProjectMetric[]
   architectureNotes?: string
   gradientPreset: GradientPreset
 }
@@ -75,13 +59,7 @@ export const CS_DOMAINS: CSDomain[] = [
   'Databases & Storage',
   'Networking & Protocols',
   'Web & Cloud Architecture',
-]
-
-export const CS_DIFFICULTIES: DifficultyLevel[] = [
-  'Beginner',
-  'Intermediate',
-  'Advanced',
-  'Research / High-Perf',
+  'Other',
 ]
 
 export const PROJECT_STATUSES: ProjectStatus[] = [

@@ -4,14 +4,16 @@ import {
   LayoutGrid,
   List,
   Star,
-  X
+  X,
+  Folder
 } from 'lucide-react'
-import { CS_DIFFICULTIES, PROJECT_STATUSES } from '@/types/project'
+import { PROJECT_STATUSES } from '@/types/project'
 import { Button } from '@/components/ui/button'
 
 interface ProjectFilterBarProps {
-  difficultyFilter: string
-  onDifficultyChange: (val: string) => void
+  folderFilter: string
+  onFolderChange: (val: string) => void
+  availableFolders: string[]
   statusFilter: string
   onStatusChange: (val: string) => void
   techFilter: string
@@ -29,8 +31,9 @@ interface ProjectFilterBarProps {
 }
 
 export const ProjectFilterBar: React.FC<ProjectFilterBarProps> = ({
-  difficultyFilter,
-  onDifficultyChange,
+  folderFilter,
+  onFolderChange,
+  availableFolders,
   statusFilter,
   onStatusChange,
   techFilter,
@@ -51,21 +54,25 @@ export const ProjectFilterBar: React.FC<ProjectFilterBarProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-2.5">
         {/* Left Filter Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Difficulty Dropdown */}
-          <div className="relative">
-            <select
-              value={difficultyFilter}
-              onChange={(e) => onDifficultyChange(e.target.value)}
-              className="h-8 rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-650 font-mono"
-            >
-              <option value="ALL">All Difficulties</option>
-              {CS_DIFFICULTIES.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Folder Dropdown */}
+          {availableFolders.length > 0 && (
+            <div className="relative flex h-8 items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-950 px-2.5 font-mono text-xs text-zinc-400">
+              <Folder className="h-3.5 w-3.5 text-zinc-500" />
+              <select
+                value={folderFilter}
+                onChange={(e) => onFolderChange(e.target.value)}
+                className="bg-transparent text-zinc-300 focus:outline-none"
+                aria-label="Filter by folder"
+              >
+                <option value="ALL">All Folders</option>
+                {availableFolders.map((folder) => (
+                  <option key={folder} value={folder}>
+                    {folder}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Status Dropdown */}
           <div className="relative">
@@ -147,7 +154,6 @@ export const ProjectFilterBar: React.FC<ProjectFilterBarProps> = ({
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
-              <option value="difficulty-desc">Highest Difficulty</option>
               <option value="title-asc">Title (A-Z)</option>
               <option value="title-desc">Title (Z-A)</option>
             </select>

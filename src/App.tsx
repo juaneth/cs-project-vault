@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, FolderPlus, Terminal, FilterX } from 'lucide-react'
+import { Plus, FolderPlus, FilterX, Clock, Cpu, Database } from 'lucide-react'
 import { CSProject } from '@/types/project'
 import { Header } from '@/components/Header'
 import { StatsBanner } from '@/components/StatsBanner'
 import { ProjectFilterBar } from '@/components/ProjectFilterBar'
 import { ProjectCard } from '@/components/ProjectCard'
 import { ProjectTableView } from '@/components/ProjectTableView'
+import { ProjectFolderCard } from '@/components/ProjectFolderCard'
 import { AddEditProjectModal } from '@/components/AddEditProjectModal'
 import { ProjectDetailModal } from '@/components/ProjectDetailModal'
 import { ImportExportModal } from '@/components/ImportExportModal'
@@ -15,6 +16,10 @@ import { generateId } from '@/lib/utils'
 const STORAGE_KEY = 'cs_projects_vault_data'
 
 const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.isElectron
+
+function formatMemory(bytes: number): string {
+  return `${(bytes / 1024 ** 3).toFixed(1)} GB`
+}
 
 /** Load projects: Electron file → localStorage → defaults */
 async function loadProjectsFromStorage(): Promise<CSProject[]> {
@@ -55,6 +60,44 @@ async function saveProjectsToStorage(projects: CSProject[]): Promise<void> {
 }
 
 export function App() {
+  const [currentTime, setCurrentTime] = useState(() => new Date())
+  const [systemUsage, setSystemUsage] = useState<{
+    cpuPercent: number
+    memoryUsedBytes: number
+    memoryTotalBytes: number
+  } | null>(null)
+  const [systemUsageUnavailable, setSystemUsageUnavailable] = useState(false)
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const getSystemUsage = window.electronAPI?.getSystemUsage
+    if (!isElectron || !getSystemUsage) return
+
+    let isMounted = true
+    const updateSystemUsage = () => {
+      getSystemUsage()
+        .then((usage) => {
+          if (!isMounted) return
+          setSystemUsage(usage)
+          setSystemUsageUnavailable(false)
+        })
+        .catch(() => {
+          if (isMounted) setSystemUsageUnavailable(true)
+        })
+    }
+
+    updateSystemUsage()
+    const timer = window.setInterval(updateSystemUsage, 5000)
+    return () => {
+      isMounted = false
+      window.clearInterval(timer)
+    }
+  }, [])
+
   // Projects State
   const [projects, setProjects] = useState<CSProject[]>([])
   const [projectsLoaded, setProjectsLoaded] = useState(false)
@@ -76,7 +119,7 @@ export function App() {
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDomain, setSelectedDomain] = useState<string>('ALL')
-  const [difficultyFilter, setDifficultyFilter] = useState<string>('ALL')
+  const [folderFilter, setFolderFilter] = useState<string>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [techFilter, setTechFilter] = useState<string>('ALL')
   const [onlyFavorites, setOnlyFavorites] = useState(false)
@@ -107,21 +150,26 @@ export function App() {
     return Array.from(set).sort()
   }, [projects])
 
+  const availableFolders = useMemo(
+    () => Array.from(new Set(projects.map((project) => project.folder?.trim()).filter((folder): folder is string => Boolean(folder)))).sort(),
+    [projects],
+  )
+
   // Count active filters
   const activeFiltersCount = useMemo(() => {
     let count = 0
     if (selectedDomain !== 'ALL') count++
-    if (difficultyFilter !== 'ALL') count++
+    if (folderFilter !== 'ALL') count++
     if (statusFilter !== 'ALL') count++
     if (techFilter !== 'ALL') count++
     if (onlyFavorites) count++
     if (searchQuery.trim()) count++
     return count
-  }, [selectedDomain, difficultyFilter, statusFilter, techFilter, onlyFavorites, searchQuery])
+  }, [selectedDomain, folderFilter, statusFilter, techFilter, onlyFavorites, searchQuery])
 
   const handleResetFilters = () => {
     setSelectedDomain('ALL')
-    setDifficultyFilter('ALL')
+    setFolderFilter('ALL')
     setStatusFilter('ALL')
     setTechFilter('ALL')
     setOnlyFavorites(false)
@@ -129,7 +177,7 @@ export function App() {
   }
 
   // Filter & Sort Pipeline
-  const filteredProjects = useMemo(() => {
+  const matchingProjects = useMemo(() => {
     let result = [...projects]
 
     // Search query filter
@@ -140,22 +188,17 @@ export function App() {
         const inTagline = p.tagline.toLowerCase().includes(q)
         const inDesc = p.description.toLowerCase().includes(q)
         const inDomain = p.domain.toLowerCase().includes(q)
+        const inFolder = p.folder?.toLowerCase().includes(q) ?? false
         const inTech = p.techStack.some((t) => t.toLowerCase().includes(q))
         const inArch = p.architectureNotes ? p.architectureNotes.toLowerCase().includes(q) : false
         const inHighlights = p.keyHighlights.some((h) => h.toLowerCase().includes(q))
-        const inComplexity = p.complexity?.time?.toLowerCase().includes(q) || p.complexity?.space?.toLowerCase().includes(q)
-        return inTitle || inTagline || inDesc || inDomain || inTech || inArch || inHighlights || inComplexity
+        return inTitle || inTagline || inDesc || inDomain || inFolder || inTech || inArch || inHighlights
       })
     }
 
     // Domain filter
     if (selectedDomain !== 'ALL') {
       result = result.filter((p) => p.domain === selectedDomain)
-    }
-
-    // Difficulty filter
-    if (difficultyFilter !== 'ALL') {
-      result = result.filter((p) => p.difficulty === difficultyFilter)
     }
 
     // Status filter
@@ -187,15 +230,6 @@ export function App() {
       if (sortBy === 'title-desc') {
         return b.title.localeCompare(a.title)
       }
-      if (sortBy === 'difficulty-desc') {
-        const weight: Record<string, number> = {
-          'Research / High-Perf': 4,
-          'Advanced': 3,
-          'Intermediate': 2,
-          'Beginner': 1,
-        }
-        return (weight[b.difficulty] || 0) - (weight[a.difficulty] || 0)
-      }
       return 0
     })
 
@@ -204,12 +238,32 @@ export function App() {
     projects,
     searchQuery,
     selectedDomain,
-    difficultyFilter,
     statusFilter,
     techFilter,
     onlyFavorites,
     sortBy,
   ])
+
+  const filteredProjects = useMemo(
+    () => folderFilter === 'ALL'
+      ? matchingProjects
+      : matchingProjects.filter((project) => project.folder?.trim() === folderFilter),
+    [matchingProjects, folderFilter],
+  )
+
+  const folderCards = useMemo(() => {
+    const counts = new Map<string, number>()
+    matchingProjects.forEach((project) => {
+      const folder = project.folder?.trim()
+      if (folder) counts.set(folder, (counts.get(folder) || 0) + 1)
+    })
+    return Array.from(counts, ([name, projectCount]) => ({ name, projectCount }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [matchingProjects])
+
+  const unfiledProjects = folderFilter === 'ALL'
+    ? filteredProjects.filter((project) => !project.folder?.trim())
+    : []
 
   // Project CRUD operations
   const handleSaveProject = (savedProject: CSProject) => {
@@ -291,8 +345,9 @@ export function App() {
 
         {/* Filter & View Mode Bar */}
         <ProjectFilterBar
-          difficultyFilter={difficultyFilter}
-          onDifficultyChange={setDifficultyFilter}
+          folderFilter={folderFilter}
+          onFolderChange={setFolderFilter}
+          availableFolders={availableFolders}
           statusFilter={statusFilter}
           onStatusChange={setStatusFilter}
           techFilter={techFilter}
@@ -309,11 +364,32 @@ export function App() {
           resultsCount={filteredProjects.length}
         />
 
+        {folderFilter === 'ALL' && folderCards.length > 0 && (
+          <section aria-label="Project folders" className="mb-5">
+            <div className="mb-3 flex items-center gap-2">
+              <FolderPlus className="h-4 w-4 text-zinc-500" />
+              <h2 className="text-xs font-mono uppercase tracking-wider text-zinc-400">
+                Folders
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {folderCards.map(({ name, projectCount }) => (
+                <ProjectFolderCard
+                  key={name}
+                  name={name}
+                  projectCount={projectCount}
+                  onOpen={() => setFolderFilter(name)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Projects View */}
-        {filteredProjects.length > 0 ? (
+        {(folderFilter === 'ALL' ? unfiledProjects : filteredProjects).length > 0 ? (
           viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredProjects.map((project) => (
+              {(folderFilter === 'ALL' ? unfiledProjects : filteredProjects).map((project) => (
                 <ProjectCard
                   key={project.id}
                   project={project}
@@ -326,14 +402,14 @@ export function App() {
             </div>
           ) : (
             <ProjectTableView
-              projects={filteredProjects}
+              projects={folderFilter === 'ALL' ? unfiledProjects : filteredProjects}
               onSelect={setSelectedProjectForDetail}
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteProject}
               onToggleFavorite={handleToggleFavorite}
             />
           )
-        ) : (
+        ) : folderFilter !== 'ALL' || folderCards.length === 0 ? (
           /* Empty Search / No Projects State */
           <div className="text-center py-16 px-4 rounded-xl border border-dashed border-zinc-850 bg-zinc-950/40">
             <div className="mx-auto h-10 w-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 mb-3">
@@ -370,28 +446,56 @@ export function App() {
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
       </main>
 
       {/* Footer */}
       <footer className="border-t border-zinc-850 bg-black/90 py-5 text-center text-xs text-zinc-500 font-mono">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2">
-            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="font-semibold text-zinc-300">CS Vault</span>
-            <span className="text-zinc-650">—</span>
-            <span className="text-zinc-500">Monochrome Systems Architecture</span>
-          </div>
-          <div className="flex items-center gap-3 text-[11px] text-zinc-500">
-            <span>{isElectron ? 'File Storage Active' : 'Local Storage Active'}</span>
-            <span className="text-zinc-650">•</span>
-            <button
-              onClick={() => setIsImportExportOpen(true)}
-              className="hover:text-white transition-colors"
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3 text-[11px] text-zinc-500">
+          <span className="group relative inline-flex items-center gap-1.5" tabIndex={0}>
+            <Clock className="h-3.5 w-3.5 text-zinc-400" />
+            <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 whitespace-nowrap rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100"
             >
-              Export JSON
-            </button>
-          </div>
+              Local time · {currentTime.toLocaleDateString()}
+            </span>
+          </span>
+          {isElectron && (
+            <>
+              <span className="group relative inline-flex items-center gap-1.5" tabIndex={0}>
+                <Cpu className="h-3.5 w-3.5 text-zinc-400" />
+                <span>{systemUsage ? `${systemUsage.cpuPercent}%` : '--'}</span>
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 whitespace-nowrap rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100"
+                >
+                  {systemUsageUnavailable
+                    ? 'CPU usage unavailable'
+                    : `System CPU usage · ${systemUsage ? `${systemUsage.cpuPercent}%` : 'Loading…'}`}
+                </span>
+              </span>
+              <span className="group relative inline-flex items-center gap-1.5" tabIndex={0}>
+                <Database className="h-3.5 w-3.5 text-zinc-400" />
+                <span>{systemUsage ? formatMemory(systemUsage.memoryUsedBytes) : '--'}</span>
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full right-0 z-50 mb-2 whitespace-nowrap rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus:opacity-100"
+                >
+                  {systemUsageUnavailable
+                    ? 'Memory usage unavailable'
+                    : `System memory · ${systemUsage ? `${formatMemory(systemUsage.memoryUsedBytes)} / ${formatMemory(systemUsage.memoryTotalBytes)}` : 'Loading…'}`}
+                </span>
+              </span>
+            </>
+          )}
+          <button
+            onClick={() => setIsImportExportOpen(true)}
+            className="hover:text-white transition-colors"
+          >
+            Export JSON
+          </button>
         </div>
       </footer>
 
@@ -401,6 +505,7 @@ export function App() {
         onClose={() => setIsAddEditOpen(false)}
         onSave={handleSaveProject}
         initialProject={editingProject}
+        availableFolders={availableFolders}
       />
 
       <ProjectDetailModal

@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch'),
   setAutoLaunch: (enabled) => ipcRenderer.invoke('set-auto-launch', enabled),
+  getSystemUsage: () => ipcRenderer.invoke('get-system-usage'),
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
   onOpenAddModal: (callback) => {

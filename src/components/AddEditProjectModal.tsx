@@ -5,27 +5,21 @@ import {
   Sparkles,
   Plus,
   Trash2,
-  Clock,
-  HardDrive,
   Cpu,
   ExternalLink,
   FileText,
-  TrendingUp,
   Palette
 } from 'lucide-react'
 import { GithubIcon } from '@/components/icons/Github'
 import {
   CSProject,
   CSDomain,
-  DifficultyLevel,
   ProjectStatus,
   GradientPreset,
   CS_DOMAINS,
-  CS_DIFFICULTIES,
   PROJECT_STATUSES,
   GRADIENT_PRESETS,
-  COMMON_TECH_STACK,
-  ProjectMetric
+  COMMON_TECH_STACK
 } from '@/types/project'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
@@ -38,6 +32,7 @@ interface AddEditProjectModalProps {
   onClose: () => void
   onSave: (project: CSProject) => void
   initialProject?: CSProject | null
+  availableFolders: string[]
 }
 
 export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
@@ -45,6 +40,7 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
   onClose,
   onSave,
   initialProject,
+  availableFolders,
 }) => {
   const isEditing = !!initialProject
 
@@ -53,28 +49,25 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
   const [tagline, setTagline] = useState('')
   const [description, setDescription] = useState('')
   const [domain, setDomain] = useState<CSDomain>('Systems & OS')
-  const [difficulty, setDifficulty] = useState<DifficultyLevel>('Advanced')
+  const [folder, setFolder] = useState('')
   const [status, setStatus] = useState<ProjectStatus>('In Progress')
   const [techStack, setTechStack] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [githubUrl, setGithubUrl] = useState('')
   const [demoUrl, setDemoUrl] = useState('')
   const [paperUrl, setPaperUrl] = useState('')
-  const [timeComplexity, setTimeComplexity] = useState('')
-  const [spaceComplexity, setSpaceComplexity] = useState('')
   const [architectureNotes, setArchitectureNotes] = useState('')
   const [gradientPreset, setGradientPreset] = useState<GradientPreset>('monochrome-sheen')
   const [featured, setFeatured] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
 
   // Dynamic Lists
-  const [metrics, setMetrics] = useState<ProjectMetric[]>([])
   const [highlights, setHighlights] = useState<string[]>([])
   const [highlightInput, setHighlightInput] = useState('')
 
   // Validation State
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [activeTab, setActiveTab] = useState<'general' | 'cs-specs' | 'metrics' | 'links'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'technical' | 'links'>('general')
 
   // Populate form on edit
   useEffect(() => {
@@ -83,19 +76,16 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
       setTagline(initialProject.tagline || '')
       setDescription(initialProject.description || '')
       setDomain(initialProject.domain || 'Systems & OS')
-      setDifficulty(initialProject.difficulty || 'Advanced')
+      setFolder(initialProject.folder || '')
       setStatus(initialProject.status || 'In Progress')
       setTechStack(initialProject.techStack || [])
       setGithubUrl(initialProject.githubUrl || '')
       setDemoUrl(initialProject.demoUrl || '')
       setPaperUrl(initialProject.paperUrl || '')
-      setTimeComplexity(initialProject.complexity?.time || '')
-      setSpaceComplexity(initialProject.complexity?.space || '')
       setArchitectureNotes(initialProject.architectureNotes || '')
       setGradientPreset(initialProject.gradientPreset || 'monochrome-sheen')
       setFeatured(initialProject.featured ?? false)
       setIsFavorite(initialProject.isFavorite ?? false)
-      setMetrics(initialProject.metrics ? [...initialProject.metrics] : [])
       setHighlights(initialProject.keyHighlights ? [...initialProject.keyHighlights] : [])
     } else {
       // Default reset
@@ -103,23 +93,17 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
       setTagline('')
       setDescription('')
       setDomain('Systems & OS')
-      setDifficulty('Advanced')
+      setFolder('')
       setStatus('In Progress')
       setTechStack(['C++', 'Rust'])
       setTagInput('')
       setGithubUrl('')
       setDemoUrl('')
       setPaperUrl('')
-      setTimeComplexity('O(log N)')
-      setSpaceComplexity('O(N)')
       setArchitectureNotes('')
       setGradientPreset('monochrome-sheen')
       setFeatured(false)
       setIsFavorite(false)
-      setMetrics([
-        { id: generateId(), label: 'Throughput', value: '500K ops/s' },
-        { id: generateId(), label: 'Latency', value: '1.2 ms' }
-      ])
       setHighlights([])
       setHighlightInput('')
     }
@@ -153,22 +137,6 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
     setHighlights(highlights.filter((_, i) => i !== index))
   }
 
-  // Metrics handling
-  const handleAddMetric = () => {
-    setMetrics([
-      ...metrics,
-      { id: generateId(), label: '', value: '' }
-    ])
-  }
-
-  const handleUpdateMetric = (id: string, field: 'label' | 'value', val: string) => {
-    setMetrics(metrics.map(m => m.id === id ? { ...m, [field]: val } : m))
-  }
-
-  const handleRemoveMetric = (id: string) => {
-    setMetrics(metrics.filter(m => m.id !== id))
-  }
-
   // Submit Handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,15 +151,13 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
       return
     }
 
-    const cleanedMetrics = metrics.filter(m => m.label.trim() && m.value.trim())
-
     const projectData: CSProject = {
       id: initialProject ? initialProject.id : generateId(),
       title: title.trim(),
       tagline: tagline.trim(),
       description: description.trim(),
       domain,
-      difficulty,
+      folder: folder.trim() || undefined,
       status,
       techStack: techStack.length > 0 ? techStack : ['C++'],
       githubUrl: githubUrl.trim() || undefined,
@@ -201,12 +167,7 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
       isFavorite,
       createdAt: initialProject ? initialProject.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      complexity: {
-        time: timeComplexity.trim() || undefined,
-        space: spaceComplexity.trim() || undefined,
-      },
       keyHighlights: highlights,
-      metrics: cleanedMetrics,
       architectureNotes: architectureNotes.trim() || undefined,
       gradientPreset,
     }
@@ -242,7 +203,7 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
       }
       description={
         isEditing
-          ? 'Modify technical specifications, benchmarks, and architecture details.'
+          ? 'Modify project details, technical highlights, and architecture notes.'
           : 'Document your new algorithm, distributed engine, compiler, or deep learning system.'
       }
     >
@@ -264,28 +225,15 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
 
           <button
             type="button"
-            onClick={() => setActiveTab('cs-specs')}
+            onClick={() => setActiveTab('technical')}
             className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
-              activeTab === 'cs-specs'
+              activeTab === 'technical'
                 ? 'bg-white text-black font-semibold shadow-sm'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Complexity & Theory</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('metrics')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-1.5 ${
-              activeTab === 'metrics'
-                ? 'bg-white text-black font-semibold shadow-sm'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Benchmarks ({metrics.length})</span>
+            <Cpu className="w-3.5 h-3.5" />
+            <span>Technical Details</span>
           </button>
 
           <button
@@ -332,8 +280,8 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
               {errors.tagline && <p className="text-xs text-red-400 mt-1">{errors.tagline}</p>}
             </div>
 
-            {/* Domain & Difficulty & Status row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {/* Domain & Status row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
                 <label className="block text-xs font-mono text-zinc-300 mb-1">
                   CS Domain
@@ -344,23 +292,6 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
                   className="w-full h-8.5 rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs text-zinc-300 font-mono focus:outline-none focus:border-zinc-650"
                 >
                   {CS_DOMAINS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-zinc-300 mb-1">
-                  Difficulty Level
-                </label>
-                <select
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
-                  className="w-full h-8.5 rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs text-zinc-300 font-mono focus:outline-none focus:border-zinc-650"
-                >
-                  {CS_DIFFICULTIES.map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>
@@ -384,6 +315,28 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="project-folder" className="block text-xs font-mono text-zinc-300 mb-1">
+                Folder
+              </label>
+              <Input
+                id="project-folder"
+                list="project-folder-options"
+                placeholder="Optional — choose or enter a folder name"
+                value={folder}
+                onChange={(e) => setFolder(e.target.value)}
+                className="text-xs font-mono"
+              />
+              <datalist id="project-folder-options">
+                {availableFolders.map((availableFolder) => (
+                  <option key={availableFolder} value={availableFolder} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-[11px] text-zinc-500 font-mono">
+                Projects with the same folder name are grouped together.
+              </p>
             </div>
 
             {/* Tech Stack Tag Input */}
@@ -469,62 +422,9 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
           </div>
         )}
 
-        {/* TAB 2: Complexity & Theory */}
-        {activeTab === 'cs-specs' && (
+        {/* TAB 2: Technical Details */}
+        {activeTab === 'technical' && (
           <div className="space-y-3.5 animate-in fade-in-50 duration-150">
-            {/* Time & Space Complexity */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-mono text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>Time Complexity Notation</span>
-                </label>
-                <Input
-                  placeholder="e.g. O(1) write / O(log N) read"
-                  value={timeComplexity}
-                  onChange={(e) => setTimeComplexity(e.target.value)}
-                  className="font-mono text-xs"
-                />
-                <div className="flex gap-1 mt-1.5 flex-wrap">
-                  {['O(1)', 'O(log N)', 'O(N)', 'O(N log N)', 'O(V+E)'].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setTimeComplexity(c)}
-                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-850 text-zinc-400 hover:text-white hover:border-zinc-700"
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-zinc-300 mb-1 flex items-center gap-1.5">
-                  <HardDrive className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>Space Complexity Notation</span>
-                </label>
-                <Input
-                  placeholder="e.g. O(N) or O(1) auxiliary"
-                  value={spaceComplexity}
-                  onChange={(e) => setSpaceComplexity(e.target.value)}
-                  className="font-mono text-xs"
-                />
-                <div className="flex gap-1 mt-1.5 flex-wrap">
-                  {['O(1)', 'O(log N)', 'O(N)', 'O(K) constant'].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setSpaceComplexity(c)}
-                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-850 text-zinc-400 hover:text-white hover:border-zinc-700"
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {/* Architecture Notes */}
             <div>
               <label className="block text-xs font-mono text-zinc-300 mb-1">
@@ -591,65 +491,7 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
           </div>
         )}
 
-        {/* TAB 3: Benchmarks & Metrics */}
-        {activeTab === 'metrics' && (
-          <div className="space-y-3.5 animate-in fade-in-50 duration-150">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-mono text-zinc-200">
-                  Performance Benchmarks & Empirical Results
-                </h4>
-                <p className="text-xs text-zinc-500">
-                  Document IOPS, latency, throughput, memory footprint, or algorithmic speedups.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddMetric}
-                className="gap-1 text-xs font-mono"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Metric
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              {metrics.map((metric) => (
-                <div key={metric.id} className="flex items-center gap-2">
-                  <Input
-                    placeholder="Metric (e.g. P99 Latency)"
-                    value={metric.label}
-                    onChange={(e) => handleUpdateMetric(metric.id, 'label', e.target.value)}
-                    className="flex-1 text-xs font-mono"
-                  />
-                  <Input
-                    placeholder="Value (e.g. 142 µs or 1.2M req/s)"
-                    value={metric.value}
-                    onChange={(e) => handleUpdateMetric(metric.id, 'value', e.target.value)}
-                    className="flex-1 text-xs font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMetric(metric.id)}
-                    className="p-2 text-zinc-500 hover:text-white rounded"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-
-              {metrics.length === 0 && (
-                <div className="p-6 text-center border border-dashed border-zinc-800 rounded-lg text-zinc-500 text-xs font-mono">
-                  No benchmarks added yet. Click &quot;Add Metric&quot; to specify performance bounds.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: Links & Aesthetics */}
+        {/* TAB 3: Links & Aesthetics */}
         {activeTab === 'links' && (
           <div className="space-y-3.5 animate-in fade-in-50 duration-150">
             {/* Repository URLs */}
@@ -764,9 +606,8 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  if (activeTab === 'links') setActiveTab('metrics')
-                  else if (activeTab === 'metrics') setActiveTab('cs-specs')
-                  else if (activeTab === 'cs-specs') setActiveTab('general')
+                  if (activeTab === 'links') setActiveTab('technical')
+                  else if (activeTab === 'technical') setActiveTab('general')
                 }}
                 className="text-xs font-mono"
               >
@@ -780,9 +621,8 @@ export const AddEditProjectModal: React.FC<AddEditProjectModalProps> = ({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  if (activeTab === 'general') setActiveTab('cs-specs')
-                  else if (activeTab === 'cs-specs') setActiveTab('metrics')
-                  else if (activeTab === 'metrics') setActiveTab('links')
+                  if (activeTab === 'general') setActiveTab('technical')
+                  else if (activeTab === 'technical') setActiveTab('links')
                 }}
                 className="text-xs font-mono"
               >

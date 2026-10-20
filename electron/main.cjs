@@ -1,10 +1,15 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
 
 let mainWindow = null
 let tray = null
 let isQuitting = false
+let previousCpuTimes = os.cpus().map(({ times }) => ({
+  idle: times.idle,
+  total: Object.values(times).reduce((sum, value) => sum + value, 0),
+}))
 
 // Configure auto-launch at login
 function ensureLoginSettings(enabled = true) {
@@ -250,6 +255,32 @@ ipcMain.handle('set-auto-launch', (_event, enabled) => {
   ensureLoginSettings(Boolean(enabled))
   updateTrayMenu()
   return app.getLoginItemSettings().openAtLogin
+})
+
+ipcMain.handle('get-system-usage', () => {
+  const cpus = os.cpus()
+  const currentCpuTimes = cpus.map(({ times }) => ({
+    idle: times.idle,
+    total: Object.values(times).reduce((sum, value) => sum + value, 0),
+  }))
+  const totalDelta = currentCpuTimes.reduce(
+    (sum, current, index) => sum + current.total - previousCpuTimes[index].total,
+    0,
+  )
+  const idleDelta = currentCpuTimes.reduce(
+    (sum, current, index) => sum + current.idle - previousCpuTimes[index].idle,
+    0,
+  )
+  previousCpuTimes = currentCpuTimes
+
+  const memoryTotalBytes = os.totalmem()
+  const memoryUsedBytes = memoryTotalBytes - os.freemem()
+
+  return {
+    cpuPercent: totalDelta > 0 ? Math.round((1 - idleDelta / totalDelta) * 100) : 0,
+    memoryUsedBytes,
+    memoryTotalBytes,
+  }
 })
 
 ipcMain.handle('minimize-to-tray', () => {

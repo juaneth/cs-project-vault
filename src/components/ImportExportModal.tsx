@@ -125,7 +125,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
             </div>
           </div>
           <p className="text-xs text-zinc-500 font-mono">
-            Save a full snapshot of all your project architectures, complexity bounds, and metrics.
+            Save a full snapshot of all your project details and architecture notes.
           </p>
         </div>
 

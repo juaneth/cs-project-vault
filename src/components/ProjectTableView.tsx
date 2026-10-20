@@ -7,8 +7,7 @@ import {
 } from 'lucide-react'
 import { GithubIcon } from '@/components/icons/Github'
 import { CSProject } from '@/types/project'
-import { Badge } from '@/components/ui/badge'
-import { getDifficultyBadgeVariant, getStatusDotClass } from '@/components/ProjectCard'
+import { getStatusDotClass } from '@/components/ProjectCard'
 import { getDomainIcon } from '@/components/StatsBanner'
 
 interface ProjectTableViewProps {
@@ -33,10 +32,9 @@ export const ProjectTableView: React.FC<ProjectTableViewProps> = ({
           <tr>
             <th scope="col" className="w-10 px-3 py-2.5 text-center">Fav</th>
             <th scope="col" className="px-4 py-2.5">System & Tagline</th>
+            <th scope="col" className="px-4 py-2.5">Folder</th>
             <th scope="col" className="px-4 py-2.5">Domain</th>
-            <th scope="col" className="px-4 py-2.5">Difficulty</th>
             <th scope="col" className="px-4 py-2.5">Status</th>
-            <th scope="col" className="px-4 py-2.5">Complexity</th>
             <th scope="col" className="px-4 py-2.5">Stack</th>
             <th scope="col" className="px-4 py-2.5 text-right">Actions</th>
           </tr>
@@ -71,6 +69,11 @@ export const ProjectTableView: React.FC<ProjectTableViewProps> = ({
                 </div>
               </td>
 
+              {/* Folder */}
+              <td className="px-4 py-2.5 whitespace-nowrap text-xs text-zinc-400 font-mono">
+                {project.folder || <span className="text-zinc-600">—</span>}
+              </td>
+
               {/* Domain */}
               <td className="px-4 py-2.5 whitespace-nowrap">
                 <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-mono">
@@ -79,28 +82,12 @@ export const ProjectTableView: React.FC<ProjectTableViewProps> = ({
                 </div>
               </td>
 
-              {/* Difficulty */}
-              <td className="px-4 py-2.5 whitespace-nowrap">
-                <Badge variant={getDifficultyBadgeVariant(project.difficulty)}>
-                  {project.difficulty}
-                </Badge>
-              </td>
-
               {/* Status */}
               <td className="px-4 py-2.5 whitespace-nowrap">
                 <div className="flex items-center gap-1.5 text-xs font-mono">
                   <span className={`h-1.5 w-1.5 rounded-full ${getStatusDotClass(project.status)}`} />
                   <span className="text-zinc-400">{project.status}</span>
                 </div>
-              </td>
-
-              {/* Complexity */}
-              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px] text-zinc-400">
-                {project.complexity?.time ? (
-                  <span className="text-zinc-300">{project.complexity.time}</span>
-                ) : (
-                  <span className="text-zinc-600">—</span>
-                )}
               </td>
 
               {/* Tech Stack */}

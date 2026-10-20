@@ -12,8 +12,7 @@ import {
   Cloud,
   CheckCircle2,
   Clock,
-  Layers,
-  Sparkles
+  Layers
 } from 'lucide-react'
 import { CSProject, CSDomain } from '@/types/project'
 import { Card } from '@/components/ui/card'
@@ -59,7 +58,6 @@ export const StatsBanner: React.FC<StatsBannerProps> = ({
   // Aggregate Stats
   const completedCount = projects.filter(p => p.status === 'Completed').length
   const activeCount = projects.filter(p => p.status === 'In Progress' || p.status === 'Active').length
-  const researchCount = projects.filter(p => p.difficulty === 'Research / High-Perf').length
 
   // Domain breakdown count
   const domainCounts = projects.reduce((acc, p) => {
@@ -78,12 +76,13 @@ export const StatsBanner: React.FC<StatsBannerProps> = ({
     'Algorithms & Data Structures',
     'Networking & Protocols',
     'Web & Cloud Architecture',
+    'Other',
   ]
 
   return (
     <div className="space-y-4 mb-6">
       {/* Vercel / Cursor Minimal Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         <Card className="p-3.5 bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700 transition-colors">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-500">Total Systems</span>
@@ -120,19 +119,6 @@ export const StatsBanner: React.FC<StatsBannerProps> = ({
           <div className="mt-1.5 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-white font-mono">{activeCount}</span>
             <span className="text-[11px] text-zinc-500 font-mono">active</span>
-          </div>
-        </Card>
-
-        <Card className="p-3.5 bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-500">Research & Perf</span>
-            <span className="text-zinc-500">
-              <Sparkles className="w-3.5 h-3.5" />
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-white font-mono">{researchCount}</span>
-            <span className="text-[11px] text-zinc-500 font-mono">advanced</span>
           </div>
         </Card>
       </div>

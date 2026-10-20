@@ -5,14 +5,12 @@ import {
   Star,
   Edit2,
   Trash2,
-  Clock,
-  HardDrive,
-  TrendingUp
+  TrendingUp,
+  Folder
 } from 'lucide-react'
 import { GithubIcon } from '@/components/icons/Github'
-import { CSProject, DifficultyLevel, ProjectStatus } from '@/types/project'
+import { CSProject, ProjectStatus } from '@/types/project'
 import { Card } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getDomainIcon } from '@/components/StatsBanner'
 
@@ -22,21 +20,6 @@ interface ProjectCardProps {
   onEdit: (project: CSProject) => void
   onDelete: (id: string) => void
   onToggleFavorite: (id: string) => void
-}
-
-export const getDifficultyBadgeVariant = (difficulty: DifficultyLevel) => {
-  switch (difficulty) {
-    case 'Beginner':
-      return 'secondary'
-    case 'Intermediate':
-      return 'default'
-    case 'Advanced':
-      return 'violet'
-    case 'Research / High-Perf':
-      return 'white'
-    default:
-      return 'secondary'
-  }
 }
 
 export const getStatusDotClass = (status: ProjectStatus) => {
@@ -80,17 +63,19 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
       {/* Card Content Top */}
       <div className="relative p-5 pb-3">
-        {/* Domain & Difficulty Badges + Star */}
+        {/* Domain Badge + Star */}
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-mono bg-zinc-900 text-zinc-300 border border-zinc-800">
               {getDomainIcon(project.domain, "w-3 h-3 text-zinc-400")}
               <span className="truncate max-w-[140px]">{project.domain}</span>
             </span>
-
-            <Badge variant={getDifficultyBadgeVariant(project.difficulty)}>
-              {project.difficulty}
-            </Badge>
+            {project.folder && (
+              <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono bg-zinc-950 text-zinc-400 border border-zinc-800">
+                <Folder className="h-3 w-3" />
+                <span className="truncate max-w-[120px]">{project.folder}</span>
+              </span>
+            )}
           </div>
 
           <button
@@ -121,43 +106,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {project.tagline}
           </p>
         </div>
-
-        {/* CS Complexity Callout (Time & Space) */}
-        {project.complexity && (project.complexity.time || project.complexity.space) && (
-          <div className="my-2.5 flex items-center gap-2 rounded-md bg-zinc-900/60 border border-zinc-800/80 px-2.5 py-1.5 text-[11px] font-mono text-zinc-400">
-            {project.complexity.time && (
-              <span className="flex items-center gap-1 text-zinc-200 truncate">
-                <Clock className="w-3 h-3 text-zinc-500" />
-                <span>{project.complexity.time}</span>
-              </span>
-            )}
-            {project.complexity.time && project.complexity.space && (
-              <span className="text-zinc-600">•</span>
-            )}
-            {project.complexity.space && (
-              <span className="flex items-center gap-1 text-zinc-300 truncate">
-                <HardDrive className="w-3 h-3 text-zinc-500" />
-                <span>{project.complexity.space}</span>
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Metrics Chips */}
-        {project.metrics && project.metrics.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap my-2.5">
-            {project.metrics.slice(0, 2).map((m) => (
-              <div
-                key={m.id}
-                className="inline-flex items-center gap-1 rounded bg-zinc-900 border border-zinc-800/80 px-2 py-0.5 text-[10px] font-mono text-zinc-300"
-              >
-                <TrendingUp className="w-2.5 h-2.5 text-zinc-400" />
-                <span className="text-zinc-500">{m.label}:</span>
-                <span className="font-semibold text-white">{m.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* Tech Stack Pills */}
         <div className="flex items-center gap-1.5 flex-wrap mt-3">
