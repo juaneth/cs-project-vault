@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron')
 const path = require('path')
+const fs = require('fs')
 
 let mainWindow = null
 let tray = null
@@ -210,6 +211,34 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true
+})
+
+// ── File-based project persistence ──────────────────────────────────────────
+function getProjectsFilePath() {
+  return path.join(app.getPath('userData'), 'projects.json')
+}
+
+ipcMain.handle('load-projects', () => {
+  try {
+    const filePath = getProjectsFilePath()
+    if (!fs.existsSync(filePath)) return null
+    const raw = fs.readFileSync(filePath, 'utf-8')
+    return JSON.parse(raw)
+  } catch (err) {
+    console.error('Failed to load projects from disk:', err)
+    return null
+  }
+})
+
+ipcMain.handle('save-projects', (_event, projects) => {
+  try {
+    const filePath = getProjectsFilePath()
+    fs.writeFileSync(filePath, JSON.stringify(projects, null, 2), 'utf-8')
+    return true
+  } catch (err) {
+    console.error('Failed to save projects to disk:', err)
+    return false
+  }
 })
 
 // IPC Handlers

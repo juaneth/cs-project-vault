@@ -9,5 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onOpenAddModal: (callback) => {
     ipcRenderer.on('action-open-add-modal', callback)
     return () => ipcRenderer.removeListener('action-open-add-modal', callback)
-  }
+  },
+  loadProjects: () => ipcRenderer.invoke('load-projects'),
+  saveProjects: (projects) => ipcRenderer.invoke('save-projects', projects),
 })

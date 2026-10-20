@@ -5,6 +5,8 @@ export interface ElectronAPI {
   minimizeToTray: () => Promise<void>
   quitApp: () => Promise<void>
   onOpenAddModal: (callback: () => void) => () => void
+  loadProjects: () => Promise<unknown[] | null>
+  saveProjects: (projects: unknown[]) => Promise<boolean>
 }
 
 declare global {

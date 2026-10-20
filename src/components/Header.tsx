@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Terminal, Moon, Sun, Download, RotateCcw, Search, Command, Power } from 'lucide-react'
+import { Plus, Terminal, Download, Search, Command, Power } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -8,9 +8,6 @@ interface HeaderProps {
   onSearchChange: (query: string) => void
   onOpenAddModal: () => void
   onOpenImportExport: () => void
-  onResetData: () => void
-  isDarkMode: boolean
-  onToggleTheme: () => void
   totalCount: number
 }
 
@@ -19,9 +16,6 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   onOpenAddModal,
   onOpenImportExport,
-  onResetData,
-  isDarkMode,
-  onToggleTheme,
   totalCount,
 }) => {
   const isElectron = typeof window !== 'undefined' && (
@@ -132,30 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden lg:inline font-mono">JSON</span>
           </Button>
 
-          {/* Reset sample projects */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onResetData}
-            className="text-zinc-400 hover:text-white h-8 w-8"
-            title="Reset to default sample CS projects"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </Button>
-
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleTheme}
-            className="text-zinc-400 hover:text-white h-8 w-8"
-            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {isDarkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          </Button>
-
-          {/* Add New CS Project CTA */}
-          <Button
+          {/* Add New CS Project CTA */}          <Button
             onClick={onOpenAddModal}
             variant="default"
             size="sm"

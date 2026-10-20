@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, FolderPlus, Terminal, FilterX } from 'lucide-react'
 import { CSProject } from '@/types/project'
-import { INITIAL_PROJECTS } from '@/data/initialProjects'
 import { Header } from '@/components/Header'
 import { StatsBanner } from '@/components/StatsBanner'
 import { ProjectFilterBar } from '@/components/ProjectFilterBar'
@@ -14,50 +13,65 @@ import { Button } from '@/components/ui/button'
 import { generateId } from '@/lib/utils'
 
 const STORAGE_KEY = 'cs_projects_vault_data'
-const THEME_KEY = 'cs_vault_theme'
+
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.isElectron
+
+/** Load projects: Electron file → localStorage → defaults */
+async function loadProjectsFromStorage(): Promise<CSProject[]> {
+  if (isElectron && window.electronAPI?.loadProjects) {
+    try {
+      const data = await window.electronAPI.loadProjects()
+      if (Array.isArray(data) && data.length > 0) return data as CSProject[]
+    } catch {
+      // fall through to localStorage
+    }
+  }
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {
+    // fall through to defaults
+  }
+  return []
+}
+
+/** Save projects: Electron file + localStorage (always keep both in sync) */
+async function saveProjectsToStorage(projects: CSProject[]): Promise<void> {
+  if (isElectron && window.electronAPI?.saveProjects) {
+    try {
+      await window.electronAPI.saveProjects(projects)
+    } catch {
+      // non-fatal
+    }
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects))
+  } catch {
+    // quota or private mode
+  }
+}
 
 export function App() {
-  // Theme State
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem(THEME_KEY)
-    if (saved !== null) return saved === 'dark'
-    return true // Default dark mode for Vercel/Cursor aesthetic
-  })
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem(THEME_KEY, 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem(THEME_KEY, 'light')
-    }
-  }, [isDarkMode])
-
-  const toggleTheme = () => setIsDarkMode((prev) => !prev)
-
   // Projects State
-  const [projects, setProjects] = useState<CSProject[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
-      }
-    } catch {
-      // fallback
-    }
-    return INITIAL_PROJECTS
-  })
+  const [projects, setProjects] = useState<CSProject[]>([])
+  const [projectsLoaded, setProjectsLoaded] = useState(false)
 
-  // Persist projects to localStorage
+  // Load persisted projects on mount (async to support Electron IPC)
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects))
-    } catch {
-      // quota or private mode fallback
-    }
-  }, [projects])
+    loadProjectsFromStorage().then((loaded) => {
+      setProjects(loaded)
+      setProjectsLoaded(true)
+    })
+  }, [])
+
+  // Persist projects whenever they change (skip the very first render before load completes)
+  useEffect(() => {
+    if (!projectsLoaded) return
+    saveProjectsToStorage(projects)
+  }, [projects, projectsLoaded])
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState('')
@@ -241,17 +255,6 @@ export function App() {
     }
   }
 
-  const handleResetData = () => {
-    if (
-      confirm(
-        'Reset all projects back to the default CS sample catalog? Any custom added projects will be replaced.'
-      )
-    ) {
-      setProjects(INITIAL_PROJECTS)
-      localStorage.removeItem(STORAGE_KEY)
-    }
-  }
-
   const handleImportProjects = (imported: CSProject[]) => {
     setProjects(imported)
   }
@@ -274,9 +277,6 @@ export function App() {
         onSearchChange={setSearchQuery}
         onOpenAddModal={handleOpenAddModal}
         onOpenImportExport={() => setIsImportExportOpen(true)}
-        onResetData={handleResetData}
-        isDarkMode={isDarkMode}
-        onToggleTheme={toggleTheme}
         totalCount={projects.length}
       />
 
@@ -383,7 +383,7 @@ export function App() {
             <span className="text-zinc-500">Monochrome Systems Architecture</span>
           </div>
           <div className="flex items-center gap-3 text-[11px] text-zinc-500">
-            <span>Local Storage Active</span>
+            <span>{isElectron ? 'File Storage Active' : 'Local Storage Active'}</span>
             <span className="text-zinc-650">•</span>
             <button
               onClick={() => setIsImportExportOpen(true)}
